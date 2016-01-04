@@ -28,7 +28,7 @@ public class SNMPDemo {
             //            InetAddress hostAddress = InetAddress.getByName("10.0.1.1");
             
             hostAddress          =   InetAddress.getByName("192.168.1.9") ;
-            community            =   "public";
+            community            =   "Public";
             version              =   0;    // SNMPv1
             
             comInterface         =   new SNMPv1CommunicationInterface(version, hostAddress, community);
