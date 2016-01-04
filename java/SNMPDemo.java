@@ -7,7 +7,17 @@ import java.net.*;
 public class SNMPDemo {
 
     public static void main(String args[]) {
-
+    InetAddress                    hostAddress          =   null ;
+    SNMPObject                     snmpValue            =   null ;
+    SNMPObjectIdentifier           snmpOID              =   null ;
+    SNMPVarBindList                newVars              =   null ;
+    SNMPv1CommunicationInterface   comInterface         =   null ;
+    SNMPSequence                   pair                 =   null ; 
+    String                         community            =   null ;
+    String                         itemID               =   null ;
+    byte[]                         javaByteArrayValue   =   null ;
+    int                            version              =   0 ;
+    
         try {
 
             // create a communications interface to a remote SNMP-capable device;
@@ -15,34 +25,40 @@ public class SNMPDemo {
             // name for the device; in addition, need to  supply the version number
             // for the SNMP messages to be sent (the value 0 corresponding to SNMP
             // version 1)
-            InetAddress  hostAddress = InetAddress.getByName("192.168.1.1") ;
-//            InetAddress hostAddress = InetAddress.getByName("10.0.1.1");
-            String community = "public";
-            int version = 0;    // SNMPv1
+            //            InetAddress hostAddress = InetAddress.getByName("10.0.1.1");
             
-            SNMPv1CommunicationInterface comInterface = new SNMPv1CommunicationInterface(version, hostAddress, community);
+            hostAddress          =   InetAddress.getByName("192.168.1.9") ;
+            community            =   "public";
+            version              =   0;    // SNMPv1
+            
+            comInterface         =   new SNMPv1CommunicationInterface(version, hostAddress, community);
             
             // now send an SNMP GET request to retrieve the value of the SNMP variable
             // corresponding to OID 1.3.6.1.2.1.2.1.0; this is the OID corresponding to
             // the device identifying string, and the type is thus SNMPOctetString
-            String itemID = "1.3.6.1.2.1.1.1.0";
-            
+            // OID 1.3.6.1.2.1.43  is printers
+            //itemID               =   "1.3.6.1.2.1.1.1.0";
+            itemID               = "1.3.6.1.2.1.25.1.1" ;
             System.out.println("Retrieving value corresponding to OID " + itemID);
             
             // the getMIBEntry method of the communications interface returns an SNMPVarBindList
             // object; this is essentially a Vector of SNMP (OID,value) pairs. In this case, the
             // returned Vector has just one pair inside it.
-            SNMPVarBindList newVars = comInterface.getMIBEntry(itemID);
-                        System.out.println("bob") ;
+            newVars              =   comInterface.getMIBEntry(itemID);
+            System.out.println("bob 1") ;
+      
             // extract the (OID,value) pair from the SNMPVarBindList; the pair is just a two-element
             // SNMPSequence
-            SNMPSequence pair = (SNMPSequence)(newVars.getSNMPObjectAt(0));
+            pair                 =   (SNMPSequence)(newVars.getSNMPObjectAt(0));
+            System.out.println("bob 2") ;
             
             // extract the object identifier from the pair; it's the first element in the sequence
-            SNMPObjectIdentifier snmpOID = (SNMPObjectIdentifier)pair.getSNMPObjectAt(0);
+            snmpOID              =   (SNMPObjectIdentifier)pair.getSNMPObjectAt(0);
+            System.out.println("bob 3") ;
             
             // extract the corresponding value from the pair; it's the second element in the sequence
-            SNMPObject snmpValue = pair.getSNMPObjectAt(1);
+            snmpValue            =   pair.getSNMPObjectAt(1);
+            System.out.println("bob 4") ;
             
             // print out the String representation of the retrieved value
             System.out.println("Retrieved value: type " + snmpValue.getClass().getName() + ", value " + snmpValue.toString());
@@ -51,9 +67,9 @@ public class SNMPDemo {
             // the return type of the method is the generic base class Object, and must be cast to 
             // the appropriate actual Java type; in this case, for an SNMPOctetString, the underlying
             // Java type is a byte array[]
-            byte[] javaByteArrayValue = (byte[])snmpValue.getValue();
+            javaByteArrayValue   = (byte[])snmpValue.getValue();
             
-            
+            System.exit(0) ;
             
             // now send an SNMP GET request to retrieve the value of the SNMP variable
             // corresponding to OID 1.3.6.1.2.1.1.3.0; this is the OID corresponding to
@@ -86,8 +102,6 @@ public class SNMPDemo {
             // of SNMPInteger, the actual type is BigInteger (which permits arbitrarily large values to 
             // be represented).
             BigInteger javaIntegerValue = (BigInteger)snmpValue.getValue();
-            
-            
             
             // now send an SNMP GET request to simultaneously retrieve the value of the SNMP variables
             // corresponding to OIDs 1.3.6.1.2.1.1.1.0 to 1.3.6.1.2.1.1.5.0
@@ -252,13 +266,12 @@ public class SNMPDemo {
             newVars = comInterface.setMIBEntry(setItemIDs, newValues);
             
             
-                
+               
         }
         catch(Exception e)
         {
             System.out.println("Exception during SNMP operation:  " + e + "\n");
         }
-        
-    }
 
+    }
 }

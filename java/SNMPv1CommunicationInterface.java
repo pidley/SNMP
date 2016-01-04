@@ -38,82 +38,109 @@ import java.net.*;
 *    via UDP, using port 161, the standard SNMP port.
 */
 
-public class SNMPv1CommunicationInterface
-{
+public class SNMPv1CommunicationInterface {
     public static final int SNMPPORT = 161;
     
     // largest size for datagram packet payload; based on
     // RFC 1157, need to handle messages of at least 484 bytes
-    private int receiveBufferSize = 512;
-    
-    private int version;
-    private InetAddress hostAddress;
-    private String community;
-    DatagramSocket dSocket;
+    private int              receiveBufferSize = 512;
+    private int              port   =   SNMPPORT ;
+    private int              version;
+    private InetAddress      hostAddress;
+    private String           community;
+    private DatagramSocket   dSocket;
     
     public int requestID = 1;
-            
-    
-    
-    
+
     /**
     *    Construct a new communication object to communicate with the specified host using the
     *    given community name. The version setting should be either 0 (version 1) or 1 (version 2,
     *    a la RFC 1157).
+     * @param version
+     * @param hostAddress
+     * @param community
+     * @throws java.lang.InstantiationException
+     * @throws java.net.SocketException
     */
     
-    public SNMPv1CommunicationInterface(int version, InetAddress hostAddress, String community)
-        throws SocketException
-    {
-        this.version = version;
-        this.hostAddress = hostAddress;
-        this.community = community;
-        
-        dSocket = new DatagramSocket();
-        dSocket.setSoTimeout(15000);    //15 seconds
+    public SNMPv1CommunicationInterface(int version, InetAddress hostAddress, String community) throws InstantiationException, SocketException {
+        setVersion(version);
+        setHostAddress(hostAddress);
+        setCommunity(community);
+        setDSocket(createDatagramSocket(hostAddress)) ;
     }
     
+    private DatagramSocket createDatagramSocket(InetAddress hostAddress) {
+    DatagramSocket   datagramSocket   =   null ;
     
+       try {
+          datagramSocket   =   new DatagramSocket(SNMPPORT, hostAddress) ;
+          datagramSocket.setSoTimeout(15000) ;
+       } catch (Exception e) {
+          System.out.println("Error: " + e.getMessage()) ;
+          datagramSocket   =   null ;
+       }
+       
+       return datagramSocket ;
+    }
     
+    private DatagramSocket getDSocket() {
+        
+       return dSocket ;
+    }
+    
+    private void setCommunity(String community) {
+    
+       this.community   =   community ;
+    }
+    
+    private void setDSocket(DatagramSocket datagramSocket) {
+        
+       this.dSocket   =   datagramSocket ;
+    }
+    
+    private void setHostAddress(InetAddress hostAddress) {
+        
+       this.hostAddress   =   hostAddress ;
+    }
     
     /**
     *    Permits setting timeout value for underlying datagram socket (in milliseconds).
+    * @param socketTimeout
+    * @throws java.net.SocketException
     */
+    public void setSocketTimeout(int socketTimeout) throws SocketException {
+        
+       dSocket.setSoTimeout(socketTimeout);
+    }
     
-    public void setSocketTimeout(int socketTimeout)
-        throws SocketException
-    {
-        dSocket.setSoTimeout(socketTimeout);
+    private void setVersion(int version) {
+        
+       this.version   =   version ;
     }
     
     
-    
     /**
-    *    Close the "connection" with the device.
-    */
+     * Close the "connection" with the device.
+     * @throws java.net.SocketException
+     */
     
-    public void closeConnection()
-        throws SocketException
-    {
-        dSocket.close();
+    public void closeConnection() throws SocketException {
+        
+       getDSocket().close();
     }
 
-    
-    
-    
-    
-    
     /**
-    *    Retrieve all MIB variable values subsequent to the starting object identifier
-    *    given in startID (in dotted-integer notation). Return as SNMPVarBindList object.
-    *    Uses SNMPGetNextRequests to retrieve variable values in sequence.
-    *    @throws IOException Thrown when timeout experienced while waiting for response to request.
-    *    @throws SNMPBadValueException 
-    */
+     *    Retrieve all MIB variable values subsequent to the starting object identifier
+     *    given in startID (in dotted-integer notation). Return as SNMPVarBindList object.
+     *    Uses SNMPGetNextRequests to retrieve variable values in sequence.
+     *    @param startID
+     *    @return 
+     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
+     *    @throws SNMPBadValueException 
+     */
     
-    public SNMPVarBindList retrieveAllMIBInfo(String startID)
-        throws IOException, SNMPBadValueException
-    {
+    public SNMPVarBindList retrieveAllMIBInfo(String startID) throws IOException, SNMPBadValueException {
         // send GetNextRequests until receive
         // an error message or a repeat of the object identifier we sent out
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -131,13 +158,9 @@ public class SNMPv1CommunicationInterface
         byte[] messageEncoding = message.getBEREncoding();
         DatagramPacket outPacket = new DatagramPacket(messageEncoding, messageEncoding.length, hostAddress, SNMPPORT);
         
-        
         dSocket.send(outPacket);
-        
-        
-        
-        while (errorStatus == 0)
-        {
+
+        while (errorStatus == 0) {
             
             DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
         
@@ -181,11 +204,8 @@ public class SNMPv1CommunicationInterface
         return retrievedVars;
         
     }
-    
-    
-    
-    private String hexByte(byte b)
-    {
+        
+    private String hexByte(byte b) {
         int pos = b;
         if (pos < 0)
             pos += 256;
@@ -194,130 +214,120 @@ public class SNMPv1CommunicationInterface
         returnString += Integer.toHexString(pos%16);
         return returnString;
     }
-    
-    
-    
-    
-    
+        
     /**
-    *    Retrieve the MIB variable value corresponding to the object identifier
-    *    given in itemID (in dotted-integer notation). Return as SNMPVarBindList object; if no
-    *    such variable (either due to device not supporting it, or community name having incorrect
-    *    access privilege), SNMPGetException thrown
-    *    @throws IOException Thrown when timeout experienced while waiting for response to request.
-    *    @throws SNMPBadValueException 
-    *   @throws SNMPGetException Thrown if supplied OID has value that can't be retrieved
-    */
+     *    Retrieve the MIB variable value corresponding to the object identifier
+     *    given in itemID (in dotted-integer notation). Return as SNMPVarBindList object; if no
+     *    such variable (either due to device not supporting it, or community name having incorrect
+     *    access privilege), SNMPGetException thrown
+     *    @param itemID
+     *    @return 
+     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
+     *    @throws SNMPBadValueException 
+     *   @throws SNMPGetException Thrown if supplied OID has value that can't be retrieved
+     */
     
-    public SNMPVarBindList getMIBEntry(String itemID)
-        throws IOException, SNMPBadValueException, SNMPGetException
-    {
-        // send GetRequest to specified host to retrieve specified object identifier
+    public SNMPVarBindList getMIBEntry(String itemID) throws IOException, SNMPBadValueException, SNMPGetException {
+    DatagramPacket         inPacket                    =   null ;
+    DatagramPacket         outPacket                   =   null ;
+    SNMPMessage            message                     =   null ;
+    SNMPMessage            receivedMessage             =   null ;
+    SNMPObject             newValue                    =   null ;
+    SNMPObjectIdentifier   newObjectIdentifier         =   null ;
+    SNMPObjectIdentifier   requestedObjectIdentifier   =   null ;
+    SNMPPDU                receivedPDU                 =   null ;
+    SNMPPDU                pdu                         =   null ;
+    SNMPSequence           newPair                     =   null ;
+    SNMPSequence           varList                     =   null ;
+    SNMPVarBindList        retrievedVars               =   null ;
+    SNMPVariablePair       nextPair                    =   null ;
+    boolean                received                    =   true ;
+    byte[]                 encodedMessage              =   null ;
+    byte[]                 messageEncoding             =   null ;
+    int                    errorIndex                  =   0 ;
+    int                    errorStatus                 =   0 ;
+    int                    u                           =   1 ;
+ 
+    // send GetRequest to specified host to retrieve specified object identifier
+
+           System.out.println("bob 10") ;
+
+           retrievedVars               =   new SNMPVarBindList() ;
+           System.out.println("bob 11") ;
+           requestedObjectIdentifier   =   new SNMPObjectIdentifier(itemID) ;
+           System.out.println("bob 12") ;
+           nextPair                    =   new SNMPVariablePair(requestedObjectIdentifier, new SNMPNull()) ;
+           System.out.println("bob 13") ;
+           varList                     =   new SNMPSequence() ;
+           System.out.println("bob 14") ;
+           varList.addSNMPObject(nextPair) ;
+           System.out.println("bob 15") ;
+           pdu                         =   new SNMPPDU(SNMPBERCodec.SNMPGETREQUEST, requestID, errorStatus, errorIndex, varList);
+           System.out.println("bob 16") ;
+           message                     =   new SNMPMessage(version, community, pdu) ;
+           System.out.println("bob 17") ;
+           messageEncoding             =   message.getBEREncoding() ;
+           System.out.println("bob 18") ;
+           outPacket                   =   new DatagramPacket(messageEncoding, messageEncoding.length, hostAddress, SNMPPORT);
+           System.out.println("bob 19") ;
+           dSocket.send(outPacket);
+           System.out.println("bob 20") ;
+
         
-        SNMPVarBindList retrievedVars = new SNMPVarBindList();
-        
-        
-        int errorStatus = 0;
-        int errorIndex = 0;
-        
-        
-        SNMPObjectIdentifier requestedObjectIdentifier = new SNMPObjectIdentifier(itemID);
-        SNMPVariablePair nextPair = new SNMPVariablePair(requestedObjectIdentifier, new SNMPNull());
-        SNMPSequence varList = new SNMPSequence();
-        varList.addSNMPObject(nextPair);
-        SNMPPDU pdu = new SNMPPDU(SNMPBERCodec.SNMPGETREQUEST, requestID, errorStatus, errorIndex, varList);
-        
-        SNMPMessage message = new SNMPMessage(version, community, pdu);
-        
-        byte[] messageEncoding = message.getBEREncoding();
-        
-        
-        /*
-        System.out.println("Request Message bytes:");
-        
-        for (int i = 0; i < messageEncoding.length; ++i)
-            System.out.print(hexByte(messageEncoding[i]) + " ");
-        */
-        
-        DatagramPacket outPacket = new DatagramPacket(messageEncoding, messageEncoding.length, hostAddress, SNMPPORT);
-        
-        dSocket.send(outPacket);
-        
-        
-        while (true)    // wait until receive reply for requestID & OID (or error)
-        {
+    // wait until receive reply for requestID & OID (or error)
+           while ( received ) {  
+              System.out.println("bob " + (u++)) ;
+              inPacket                 =   new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
+              dSocket.receive(inPacket);
+              System.out.println("inPacket address: " + inPacket.getAddress().toString()) ;
+              System.out.println("inPacket port: " + inPacket.getPort()) ;
+              System.out.println("inPacket length: " + inPacket.getLength()) ;
+              System.out.println("inPacket data: " + new String(inPacket.getData())) ;
+
+              encodedMessage           =   inPacket.getData() ;
+              receivedMessage          =   new SNMPMessage(SNMPBERCodec.extractNextTLV(encodedMessage,0).value);
+              receivedPDU              =   receivedMessage.getPDU() ;
             
-            DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
-            
-            dSocket.receive(inPacket);
-            
-            byte[] encodedMessage = inPacket.getData();
-            
-            /*
-            System.out.println("Message bytes:");
-            
-            for (int i = 0; i < encodedMessage.length; ++i)
-            {
-                System.out.print(hexByte(encodedMessage[i]) + " ");
-            }
-            */
-            
-            
-            SNMPMessage receivedMessage = new SNMPMessage(SNMPBERCodec.extractNextTLV(encodedMessage,0).value);
-            SNMPPDU receivedPDU = receivedMessage.getPDU();
-            
-            // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
-                
-                // check error status; if retrieval problem, throw SNMPGetException
-                if (receivedPDU.getErrorStatus() != 0)
+    // check request identifier; if incorrect, just ignore packet and continue waiting
+    
+              if (receivedPDU.getRequestID() == requestID) {
+                 if (receivedPDU.getErrorStatus() != 0)
                     throw new SNMPGetException("OID " + itemID + " not available for retrieval", receivedPDU.getErrorIndex(), receivedPDU.getErrorStatus());        
+                 varList               =   receivedPDU.getVarBindList() ;
+                 newPair               =   (SNMPSequence)(varList.getSNMPObjectAt(0)) ;
+                 newObjectIdentifier   =   (SNMPObjectIdentifier)(newPair.getSNMPObjectAt(0)) ;
+                 newValue              =   newPair.getSNMPObjectAt(1) ;
                 
-                
-                varList = receivedPDU.getVarBindList();
-                SNMPSequence newPair = (SNMPSequence)(varList.getSNMPObjectAt(0));
-                
-                SNMPObjectIdentifier newObjectIdentifier = (SNMPObjectIdentifier)(newPair.getSNMPObjectAt(0));
-                SNMPObject newValue = newPair.getSNMPObjectAt(1);
-                
-                // check the object identifier to make sure the correct variable has been received;
-                // if not, just continue waiting for receive
-                if (newObjectIdentifier.toString().equals(itemID))
-                {
+    // check the object identifier to make sure the correct variable has been received;
+    // if not, just continue waiting for receive
+     
+                 if (newObjectIdentifier.toString().equals(itemID)) {
                     // got the right one; add it to retrieved var list and break!
                     retrievedVars.addSNMPObject(newPair);
-                    break;
-                }
-            
-            }
-            
-        }
-        
+                    System.out.println("Vars length = " + retrievedVars.size()) ;
+                    received   =   false ; //break;
+                 }
+              }
+           }
         
         requestID++;
         
-        
         return retrievedVars;
-        
     }
-    
-    
-    
     
     /**
     *    Retrieve the MIB variable values corresponding to the object identifiers
     *    given in the array itemID (in dotted-integer notation). Return as SNMPVarBindList object; 
     *    if no such variable (either due to device not supporting it, or community name having incorrect
     *    access privilege), SNMPGetException thrown
+     * @param itemID
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
     *   @throws SNMPGetException Thrown if one of supplied OIDs has value that can't be retrieved
     */
     
-    public SNMPVarBindList getMIBEntry(String[] itemID)
-        throws IOException, SNMPBadValueException, SNMPGetException
-    {
+    public SNMPVarBindList getMIBEntry(String[] itemID) throws IOException, SNMPBadValueException, SNMPGetException {
         // send GetRequest to specified host to retrieve values of specified object identifiers
         
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -326,8 +336,7 @@ public class SNMPv1CommunicationInterface
         int errorStatus = 0;
         int errorIndex = 0;
         
-        for (int i = 0; i < itemID.length; i++)
-        {
+        for (int i = 0; i < itemID.length; i++) {
             SNMPObjectIdentifier requestedObjectIdentifier = new SNMPObjectIdentifier(itemID[i]);
             SNMPVariablePair nextPair = new SNMPVariablePair(requestedObjectIdentifier, new SNMPNull());
             varList.addSNMPObject(nextPair);
@@ -354,8 +363,7 @@ public class SNMPv1CommunicationInterface
         dSocket.send(outPacket);
         
         
-        while (true)    // wait until receive reply for requestID & OID (or error)
-        {
+        while (true)  {  // wait until receive reply for requestID & OID (or error)
             
             DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
             
@@ -377,12 +385,10 @@ public class SNMPv1CommunicationInterface
             SNMPPDU receivedPDU = receivedMessage.getPDU();
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem, throw SNMPGetException
-                if (receivedPDU.getErrorStatus() != 0)
-                {
+                if (receivedPDU.getErrorStatus() != 0) {
                     // determine error index
                     errorIndex = receivedPDU.getErrorIndex();
                     throw new SNMPGetException("OID " + itemID[errorIndex - 1] + " not available for retrieval", errorIndex, receivedPDU.getErrorStatus());        
@@ -391,19 +397,15 @@ public class SNMPv1CommunicationInterface
                 // copy info from retrieved sequence to var bind list
                 varList = receivedPDU.getVarBindList();
                 
-                for (int i = 0; i < varList.size(); i++)
-                {
+                for (int i = 0; i < varList.size(); i++) {
                     SNMPSequence newPair = (SNMPSequence)(varList.getSNMPObjectAt(i));
                     
                     SNMPObjectIdentifier newObjectIdentifier = (SNMPObjectIdentifier)(newPair.getSNMPObjectAt(0));
                     SNMPObject newValue = newPair.getSNMPObjectAt(1);
                     
-                    if (newObjectIdentifier.toString().equals(itemID[i]))
-                    {
+                    if (newObjectIdentifier.toString().equals(itemID[i])) {
                         retrievedVars.addSNMPObject(newPair);
-                    }
-                    else
-                    {
+                    } else {
                         // wrong OID; throw GetException
                         throw new SNMPGetException("OID " + itemID[i] + " expected at index " + i + ", OID " + newObjectIdentifier + " received", i+1, SNMPRequestException.FAILED);
                     }
@@ -423,23 +425,19 @@ public class SNMPv1CommunicationInterface
         
     }
     
-    
-    
-    
-    
     /**
     *    Retrieve the MIB variable value corresponding to the object identifier following that
     *    given in itemID (in dotted-integer notation). Return as SNMPVarBindList object; if no
     *    such variable (either due to device not supporting it, or community name having incorrect
     *    access privilege), variable value will be SNMPNull object
+     * @param itemID
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
     *   @throws SNMPGetException Thrown if one the OID following the supplied OID has value that can't be retrieved
     */
     
-    public SNMPVarBindList getNextMIBEntry(String itemID)
-        throws IOException, SNMPBadValueException, SNMPGetException
-    {
+    public SNMPVarBindList getNextMIBEntry(String itemID) throws IOException, SNMPBadValueException, SNMPGetException {
         // send GetRequest to specified host to retrieve specified object identifier
         
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -473,8 +471,7 @@ public class SNMPv1CommunicationInterface
         dSocket.send(outPacket);
         
         
-        while (true)    // wait until receive reply for requestID & OID (or error)
-        {
+        while (true) {    // wait until receive reply for requestID & OID (or error)
             
             DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
             
@@ -496,8 +493,7 @@ public class SNMPv1CommunicationInterface
             SNMPPDU receivedPDU = receivedMessage.getPDU();
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem, throw SNMPGetException
                 if (receivedPDU.getErrorStatus() != 0)
@@ -526,23 +522,19 @@ public class SNMPv1CommunicationInterface
         
     }
     
-    
-    
-    
-    
     /**
     *    Retrieve the MIB variable value corresponding to the object identifiers following those
     *    given in the itemID array (in dotted-integer notation). Return as SNMPVarBindList object; 
     *    if no such variable (either due to device not supporting it, or community name having 
     *    incorrect access privilege), SNMPGetException thrown
+     * @param itemID
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
     *   @throws SNMPGetException Thrown if OID following one of supplied OIDs has value that can't be retrieved
     */
     
-    public SNMPVarBindList getNextMIBEntry(String[] itemID)
-        throws IOException, SNMPBadValueException, SNMPGetException
-    {
+    public SNMPVarBindList getNextMIBEntry(String[] itemID) throws IOException, SNMPBadValueException, SNMPGetException {
         // send GetRequest to specified host to retrieve values of specified object identifiers
         
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -551,8 +543,7 @@ public class SNMPv1CommunicationInterface
         int errorStatus = 0;
         int errorIndex = 0;
         
-        for (int i = 0; i < itemID.length; i++)
-        {
+        for (int i = 0; i < itemID.length; i++) {
             SNMPObjectIdentifier requestedObjectIdentifier = new SNMPObjectIdentifier(itemID[i]);
             SNMPVariablePair nextPair = new SNMPVariablePair(requestedObjectIdentifier, new SNMPNull());
             varList.addSNMPObject(nextPair);
@@ -577,8 +568,7 @@ public class SNMPv1CommunicationInterface
         dSocket.send(outPacket);
         
         
-        while (true)    // wait until receive reply for requestID & OID (or error)
-        {
+        while (true) {    // wait until receive reply for requestID & OID (or error)
             
             DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
             
@@ -600,12 +590,10 @@ public class SNMPv1CommunicationInterface
             SNMPPDU receivedPDU = receivedMessage.getPDU();
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem, throw SNMPGetException
-                if (receivedPDU.getErrorStatus() != 0)
-                {
+                if (receivedPDU.getErrorStatus() != 0) {
                     // determine error index
                     errorIndex = receivedPDU.getErrorIndex();
                     throw new SNMPGetException("OID following " + itemID[errorIndex - 1] + " not available for retrieval", errorIndex, receivedPDU.getErrorStatus());        
@@ -614,8 +602,7 @@ public class SNMPv1CommunicationInterface
                 // copy info from retrieved sequence to var bind list
                 varList = receivedPDU.getVarBindList();
                 
-                for (int i = 0; i < varList.size(); i++)
-                {
+                for (int i = 0; i < varList.size(); i++) {
                     SNMPSequence newPair = (SNMPSequence)(varList.getSNMPObjectAt(i));
                     
                     SNMPObjectIdentifier newObjectIdentifier = (SNMPObjectIdentifier)(newPair.getSNMPObjectAt(0));
@@ -639,24 +626,20 @@ public class SNMPv1CommunicationInterface
         
     }
     
-    
-    
-    
-    
-    
-    
     /**
     *    Set the MIB variable value of the object identifier
     *    given in startID (in dotted-integer notation). Return SNMPVarBindList object returned
     *    by device in its response; can be used to check that setting was successful.
     *    Uses SNMPGetNextRequests to retrieve variable values in sequence.
+     * @param itemID
+     * @param newValue
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
+     * @throws org.codegaucho.pidley.snmp.SNMPSetException 
     */
     
-    public SNMPVarBindList setMIBEntry(String itemID, SNMPObject newValue)
-        throws IOException, SNMPBadValueException, SNMPSetException
-    {
+    public SNMPVarBindList setMIBEntry(String itemID, SNMPObject newValue) throws IOException, SNMPBadValueException, SNMPSetException {
         // send SetRequest to specified host to set value of specified object identifier
         
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -693,8 +676,7 @@ public class SNMPv1CommunicationInterface
         dSocket.send(outPacket);
         
         
-        while (true)    // wait until receive reply for correct OID (or error)
-        {
+        while (true) {  // wait until receive reply for correct OID (or error)
             
             DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
             
@@ -720,14 +702,11 @@ public class SNMPv1CommunicationInterface
             
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem, throw SNMPGetException
-                if (receivedPDU.getErrorStatus() != 0)
-                {
-                    switch (receivedPDU.getErrorStatus())
-                    {
+                if (receivedPDU.getErrorStatus() != 0) {
+                    switch (receivedPDU.getErrorStatus()) {
                         case 1:
                             throw new SNMPSetException("Value supplied for OID " + itemID + " too big.", receivedPDU.getErrorIndex(), receivedPDU.getErrorStatus());
                         
@@ -752,8 +731,7 @@ public class SNMPv1CommunicationInterface
                 
                 // check the object identifier to make sure the correct variable has been received;
                 // if not, just continue waiting for receive
-                if (((SNMPObjectIdentifier)newPair.getSNMPObjectAt(0)).toString().equals(itemID))
-                {
+                if (((SNMPObjectIdentifier)newPair.getSNMPObjectAt(0)).toString().equals(itemID)) {
                     // got the right one; add it to retrieved var list and break!
                     retrievedVars.addSNMPObject(newPair);
                     break;
@@ -771,24 +749,22 @@ public class SNMPv1CommunicationInterface
         
     }
     
-    
-    
-    
     /**
     *    Set the MIB variable values of the supplied object identifiers given in the 
     *    itemID array (in dotted-integer notation). Return SNMPVarBindList returned
     *    by device in its response; can be used to check that setting was successful.
     *    Uses SNMPGetNextRequests to retrieve variable values in sequence.
+     * @param itemID
+     * @param newValue
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
+     * @throws org.codegaucho.pidley.snmp.SNMPSetException 
     */
     
-    public SNMPVarBindList setMIBEntry(String[] itemID, SNMPObject[] newValue)
-        throws IOException, SNMPBadValueException, SNMPSetException
-    {
+    public SNMPVarBindList setMIBEntry(String[] itemID, SNMPObject[] newValue) throws IOException, SNMPBadValueException, SNMPSetException {
         // check that OID and value arrays have same size
-        if (itemID.length != newValue.length)
-        {
+        if (itemID.length != newValue.length) {
             throw new SNMPSetException("OID and value arrays must have same size", 0, SNMPRequestException.FAILED);
         }
         
@@ -802,8 +778,7 @@ public class SNMPv1CommunicationInterface
         int errorIndex = 0;
         
         
-        for (int i = 0; i < itemID.length; i++)
-        {
+        for (int i = 0; i < itemID.length; i++) {
             SNMPObjectIdentifier requestedObjectIdentifier = new SNMPObjectIdentifier(itemID[i]);
             SNMPVariablePair nextPair = new SNMPVariablePair(requestedObjectIdentifier, newValue[i]);
             varList.addSNMPObject(nextPair);
@@ -829,8 +804,7 @@ public class SNMPv1CommunicationInterface
         dSocket.send(outPacket);
         
         
-        while (true)    // wait until receive reply for correct OID (or error)
-        {
+        while (true) {   // wait until receive reply for correct OID (or error)
             
             DatagramPacket inPacket = new DatagramPacket(new byte[receiveBufferSize], receiveBufferSize);
             
@@ -855,16 +829,13 @@ public class SNMPv1CommunicationInterface
             
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem, throw SNMPGetException
-                if (receivedPDU.getErrorStatus() != 0)
-                {
+                if (receivedPDU.getErrorStatus() != 0) {
                     errorIndex = receivedPDU.getErrorIndex();
                     
-                    switch (receivedPDU.getErrorStatus())
-                    {
+                    switch (receivedPDU.getErrorStatus()) {
                         case 1:
                             throw new SNMPSetException("Value supplied for OID " + itemID[errorIndex - 1] + " too big.", receivedPDU.getErrorIndex(), receivedPDU.getErrorStatus());
                         
@@ -887,19 +858,15 @@ public class SNMPv1CommunicationInterface
                 // copy info from retrieved sequence to var bind list
                 varList = receivedPDU.getVarBindList();
                 
-                for (int i = 0; i < varList.size(); i++)
-                {
+                for (int i = 0; i < varList.size(); i++) {
                     SNMPSequence newPair = (SNMPSequence)(varList.getSNMPObjectAt(i));
                     
                     SNMPObjectIdentifier newObjectIdentifier = (SNMPObjectIdentifier)(newPair.getSNMPObjectAt(0));
                     //SNMPObject receivedValue = newPair.getSNMPObjectAt(1);
                     
-                    if (newObjectIdentifier.toString().equals(itemID[i]))
-                    {
+                    if (newObjectIdentifier.toString().equals(itemID[i]))  {
                         retrievedVars.addSNMPObject(newPair);
-                    }
-                    else
-                    {
+                    } else {
                         // wrong OID; throw GetException
                         throw new SNMPSetException("OID " + itemID[i] + " expected at index " + i + ", OID " + newObjectIdentifier + " received", i+1, SNMPRequestException.FAILED);
                     }
@@ -919,21 +886,19 @@ public class SNMPv1CommunicationInterface
         
     }
     
-    
-    
-    
     /**
     *    Retrieve all MIB variable values whose OIDs start with the supplied baseID. Since the entries of
-    *   an SNMP table have the form  <baseID>.<tableEntry>.<index>, this will retrieve all of the table 
+    *   an SNMP table have the form  [baseID>].[tableEntry>].[index], this will retrieve all of the table 
     *   data as an SNMPVarBindList object consisting of sequence of SNMPVariablePairs.
     *    Uses SNMPGetNextRequests to retrieve variable values in sequence.
+     * @param baseID
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
+     * @throws org.codegaucho.pidley.snmp.SNMPGetException 
     */
     
-    public SNMPVarBindList retrieveMIBTable(String baseID)
-        throws IOException, SNMPBadValueException, SNMPGetException
-    {
+    public SNMPVarBindList retrieveMIBTable(String baseID) throws IOException, SNMPBadValueException, SNMPGetException {
         // send GetNextRequests until receive
         // an error message or a repeat of the object identifier we sent out
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -946,8 +911,7 @@ public class SNMPv1CommunicationInterface
         SNMPObjectIdentifier requestedObjectIdentifier = new SNMPObjectIdentifier(currentID);
         
         
-        while (errorStatus == 0)
-        {
+        while (errorStatus == 0) {
             
             SNMPVariablePair nextPair = new SNMPVariablePair(requestedObjectIdentifier, new SNMPNull());
             SNMPSequence varList = new SNMPSequence();
@@ -980,12 +944,10 @@ public class SNMPv1CommunicationInterface
             SNMPPDU receivedPDU = receivedMessage.getPDU();
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem, just break - could be there are no additional OIDs
-                if (receivedPDU.getErrorStatus() != 0)
-                {
+                if (receivedPDU.getErrorStatus() != 0) {
                     break;
                     //throw new SNMPGetException("OID following " + requestedObjectIdentifier + " not available for retrieval");        
                 }
@@ -1017,9 +979,6 @@ public class SNMPv1CommunicationInterface
         
     }
     
-    
-    
-    
     /**
     *    Retrieve all MIB variable values whose OIDs start with the supplied baseIDs. The normal way for
     *   this to be used is for the base OID array to consist of the base OIDs of the columns of a table.
@@ -1030,14 +989,14 @@ public class SNMPv1CommunicationInterface
     *   the table data than the simpler retrieveMIBTable method taking a single OID as argument; in addition,
     *   it's more efficient, requiring one SNMP request per row rather than one request per entry.
     *    Uses SNMPGetNextRequests to retrieve variable values for each row in sequence.
+     * @param baseID
+     * @return 
     *    @throws IOException Thrown when timeout experienced while waiting for response to request.
     *    @throws SNMPBadValueException 
     *   @throws SNMPGetException Thrown if incomplete row retrieved
     */
     
-    public SNMPVarBindList retrieveMIBTable(String[] baseID)
-        throws IOException, SNMPBadValueException, SNMPGetException
-    {
+    public SNMPVarBindList retrieveMIBTable(String[] baseID) throws IOException, SNMPBadValueException, SNMPGetException {
         // send GetNextRequests until receive
         // an error message or a repeat of the object identifier we sent out
         SNMPVarBindList retrievedVars = new SNMPVarBindList();
@@ -1046,16 +1005,14 @@ public class SNMPv1CommunicationInterface
         int errorIndex = 0;
         
         SNMPObjectIdentifier[] requestedObjectIdentifier = new SNMPObjectIdentifier[baseID.length];
-        for (int i = 0; i < baseID.length; i++)
-        {
+        for (int i = 0; i < baseID.length; i++) {
                requestedObjectIdentifier[i] = new SNMPObjectIdentifier(baseID[i]);
         }
         
 
 retrievalLoop:
         
-        while (errorStatus == 0)
-        {
+        while (errorStatus == 0) {
             
             SNMPSequence varList = new SNMPSequence();
             
@@ -1095,21 +1052,16 @@ retrievalLoop:
             SNMPPDU receivedPDU = receivedMessage.getPDU();
             
             // check request identifier; if incorrect, just ignore packet and continue waiting
-            if (receivedPDU.getRequestID() == requestID)
-            {
+            if (receivedPDU.getRequestID() == requestID) {
                 
                 // check error status; if retrieval problem for error index 1, just break - assume there are no additional OIDs
                 // to retrieve. If index is other than 1, throw exception
-                if (receivedPDU.getErrorStatus() != 0)
-                {
+                if (receivedPDU.getErrorStatus() != 0) {
                     int retrievedErrorIndex = receivedPDU.getErrorIndex();
                     
-                    if (retrievedErrorIndex == 1)
-                    {
+                    if (retrievedErrorIndex == 1) {
                         break retrievalLoop;
-                    }
-                    else
-                    {
+                    } else {
                         throw new SNMPGetException("OID following " + requestedObjectIdentifier[retrievedErrorIndex - 1] + " not available for retrieval", retrievedErrorIndex, receivedPDU.getErrorStatus());
                     }    
                 }
@@ -1118,14 +1070,12 @@ retrievalLoop:
                 varList = receivedPDU.getVarBindList();
                 
                 // make sure got the right number of vars in reply; if not, throw GetException
-                if(varList.size() != requestedObjectIdentifier.length)
-                {
+                if(varList.size() != requestedObjectIdentifier.length) {
                     throw new SNMPGetException("Incomplete row of table received", 0, SNMPRequestException.FAILED);
                 }
                 
                 // copy the retrieved variable pairs into retrievedVars
-                for (int i = 0; i < varList.size(); i++)
-                {
+                for (int i = 0; i < varList.size(); i++) {
                     SNMPSequence newPair = (SNMPSequence)(varList.getSNMPObjectAt(i));
                     
                     SNMPObjectIdentifier newObjectIdentifier = (SNMPObjectIdentifier)(newPair.getSNMPObjectAt(0));
@@ -1133,15 +1083,11 @@ retrievalLoop:
                     
                     // now see if retrieved ID starts with table base; if not, done with table - break
                     String newOIDString = (String)newObjectIdentifier.toString();
-                    if (!newOIDString.startsWith(baseID[i]))
-                    {
-                        if (i == 0)
-                        {
+                    if (!newOIDString.startsWith(baseID[i])) {
+                        if (i == 0) {
                             // it's the first element of the row; just break
                             break retrievalLoop;
-                        }
-                        else
-                        {
+                        } else {
                             // it's a subsequent row element; throw exception
                             throw new SNMPGetException("Incomplete row of table received", i+1, SNMPRequestException.FAILED);
                         }
@@ -1166,11 +1112,6 @@ retrievalLoop:
         
     }
     
-    
-    
-    
-    
-    
     /**
     *   Set the size of the buffer used to receive response packets. RFC 1157 stipulates that an SNMP
     *   implementation must be able to receive packets of at least 484 bytes, so if you try to set the
@@ -1178,31 +1119,21 @@ retrievalLoop:
     *   the maximum size of a UDP packet payload is 65535 bytes, so setting the buffer to a larger size
     *   will just waste memory. The default value is 512 bytes. The value may need to be increased if
     *   get-requests are issued for multiple OIDs.
+     * @param receiveBufferSize
     */
     
-    public void setReceiveBufferSize(int receiveBufferSize)
-    {
-        if (receiveBufferSize >= 484)
-        {
-            this.receiveBufferSize = receiveBufferSize;
-        }
-        else
-        {
-            this.receiveBufferSize = 484;
-        }
+    public void setReceiveBufferSize(int receiveBufferSize) {
+        
+       this.receiveBufferSize   =  (receiveBufferSize >= 484 ) ? receiveBufferSize : 484 ;   
     }
-    
-    
     
     /**
     *   Returns the current size of the buffer used to receive response packets. 
+     * @return 
     */
     
-    public int getReceiveBufferSize()
-    {
+    public int getReceiveBufferSize() {
         return this.receiveBufferSize;
     }
-    
-    
     
 }

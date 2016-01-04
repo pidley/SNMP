@@ -84,35 +84,23 @@ RFC1157-SNMP DEFINITIONS
 */
 
 
-public class SNMPMessage extends SNMPSequence
-{
-    
+public class SNMPMessage extends SNMPSequence {
     
     /**
-    *    Create an SNMP message with specified version, community, and pdu.
-    *    Use version = 0 for SNMP version 1, or version = 1 for enhanced capapbilities
-    *    provided through RFC 1157.
-    */
+     *    Create an SNMP message with specified version, community, and pdu.
+     *    Use version = 0 for SNMP version 1, or version = 1 for enhanced capapbilities
+     *    provided through RFC 1157.
+     */
     
-    public SNMPMessage(int version, String community, SNMPPDU pdu)
-    {
+    public SNMPMessage(int version, String community, SNMPPDU pdu) {
+
         super();
-        Vector contents = new Vector();
-        contents.insertElementAt(new SNMPInteger(version), 0);
-        contents.insertElementAt(new SNMPOctetString(community), 1);
-        contents.insertElementAt(pdu, 2);
-        
-        try
-        {
-            this.setValue(contents);
-        }
-        catch (SNMPBadValueException e)
-        {
+        try {
+            this.setValue(createContents(version, community, pdu));
+        } catch (SNMPBadValueException e) {
             // can't happen! all supplied Vector elements are SNMP Object subclasses
         }
     }
-    
-    
     
     /**
     *    Create an SNMP message with specified version, community, and trap pdu.
@@ -120,8 +108,7 @@ public class SNMPMessage extends SNMPSequence
     *    provided through RFC 1157.
     */
     
-    public SNMPMessage(int version, String community, SNMPv1TrapPDU pdu)
-    {
+    public SNMPMessage(int version, String community, SNMPv1TrapPDU pdu) {
         super();
         Vector contents = new Vector();
         contents.insertElementAt(new SNMPInteger(version), 0);
@@ -146,8 +133,7 @@ public class SNMPMessage extends SNMPSequence
     *    Use version = 1.
     */
     
-    public SNMPMessage(int version, String community, SNMPv2TrapPDU pdu)
-    {
+    public SNMPMessage(int version, String community, SNMPv2TrapPDU pdu) {
         super();
         Vector contents = new Vector();
         contents.insertElementAt(new SNMPInteger(version), 0);
@@ -172,9 +158,7 @@ public class SNMPMessage extends SNMPSequence
     *    @throws SNMPBadValueException Indicates invalid SNMP message encoding supplied.
     */
     
-    protected SNMPMessage(byte[] enc)
-        throws SNMPBadValueException
-    {
+    protected SNMPMessage(byte[] enc) throws SNMPBadValueException {
         super(enc);
         
         // validate the message: make sure we have the appropriate pieces
@@ -202,6 +186,16 @@ public class SNMPMessage extends SNMPSequence
         
     }
     
+    private Vector createContents(int version, String community, SNMPPDU pdu) {
+    Vector contents   =   null ;
+    
+       contents   =   new Vector() ;
+       contents.insertElementAt(new SNMPInteger(version), 0);
+       contents.insertElementAt(new SNMPOctetString(community), 1);
+       contents.insertElementAt(pdu, 2);
+        
+       return contents ;
+    }
     
     /** 
     *    Utility method which returns the PDU contained in the SNMP message as a plain Java Object. 
